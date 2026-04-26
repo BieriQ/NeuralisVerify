@@ -14,7 +14,7 @@ CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 GUILD_ID = 1496581706508140564  # ID Twojego serwera
 ROLE_ID = 1498042097704501258   # ID rangi 18+
-REDIRECT_URI = "https://neuralisverify.onrender.com/callback"
+REDIRECT_URI = "https://neuralisverify.onrender.com"
 
 bot = commands.Bot(intents=nextcord.Intents.all())
 app = FastAPI()
