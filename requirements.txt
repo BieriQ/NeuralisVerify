@@ -1,0 +1,5 @@
+nextcord
+fastapi
+uvicorn
+aiohttp
+python-multipart
