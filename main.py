@@ -172,9 +172,12 @@ def run_uvicorn():
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 if __name__ == "__main__":
-    # Odpalamy serwer WWW w osobnym "wątku", żeby nie blokował bota
-    threading.Thread(target=run_uvicorn, daemon=True).start()
+    # Uruchomienie bota Discord w tle
+    import threading
+    threading.Thread(target=lambda: bot.run(os.getenv("DISCORD_TOKEN"))).start()
     
-    # Odpalamy bota normalnie
-    print("🚀 Próba logowania bota...")
-    bot.run(TOKEN)
+    # Uruchomienie serwera WWW (FastAPI)
+    import uvicorn
+    import os
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
