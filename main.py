@@ -14,7 +14,7 @@ CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 GUILD_ID = 1496581706508140564  # ID Twojego serwera
 ROLE_ID = 1498042097704501258   # ID rangi 18+
-REDIRECT_URI = "https://neuralisverify.onrender.com"
+REDIRECT_URI = "https://neuralisverify.onrender.com/callback"
 
 bot = commands.Bot(intents=nextcord.Intents.all())
 app = FastAPI()
@@ -171,13 +171,14 @@ import threading
 def run_uvicorn():
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
+import threading
+
 if __name__ == "__main__":
-    # Uruchomienie bota Discord w tle
-    import threading
-    threading.Thread(target=lambda: bot.run(os.getenv("DISCORD_TOKEN"))).start()
+    # 1. Odpalenie bota Discord w osobnym wątku
+    if TOKEN:
+        threading.Thread(target=bot.run, args=(TOKEN,), daemon=True).start()
     
-    # Uruchomienie serwera WWW (FastAPI)
+    # 2. Odpalenie serwera FastAPI (Render tego wymaga)
     import uvicorn
-    import os
     port = int(os.environ.get("PORT", 10000))
     uvicorn.run(app, host="0.0.0.0", port=port)
