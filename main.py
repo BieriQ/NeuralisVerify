@@ -173,12 +173,18 @@ def run_uvicorn():
 
 import threading
 
+import threading
+import os
+
 if __name__ == "__main__":
-    # 1. Odpalenie bota Discord w osobnym wątku
+    # Pobranie tokenu z Environment Variables Rendera
+    TOKEN = os.getenv("DISCORD_TOKEN")
+
+    # 1. URUCHOMIENIE BOTA W TLE (to go ożywi na Discordzie)
     if TOKEN:
         threading.Thread(target=bot.run, args=(TOKEN,), daemon=True).start()
-    
-    # 2. Odpalenie serwera FastAPI (Render tego wymaga)
+
+    # 2. URUCHOMIENIE SERWERA WWW (to już masz, ale musi być pod botem)
     import uvicorn
     port = int(os.environ.get("PORT", 10000))
     uvicorn.run(app, host="0.0.0.0", port=port)
