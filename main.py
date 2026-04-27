@@ -5,15 +5,15 @@ from fastapi.responses import HTMLResponse
 import uvicorn
 import asyncio
 import aiohttp
-
-# --- UZUPEŁNIJ TO ---
 import os
+import threading
 
+# --- KONFIGURACJA ---
 TOKEN = os.getenv("DISCORD_TOKEN")
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-GUILD_ID = 1496581706508140564  # ID Twojego serwera
-ROLE_ID = 1498042097704501258   # ID rangi 18+
+GUILD_ID = 1496581706508140564
+ROLE_ID = 1498042097704501258
 REDIRECT_URI = "https://neuralisverify.onrender.com/callback"
 
 bot = commands.Bot(intents=nextcord.Intents.all())
@@ -53,77 +53,22 @@ async def callback(code: str):
 
     css = """
     <style>
-        body {
-            background-color: #050b18;
-            color: #ffffff;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            overflow: hidden;
-        }
-        .container {
-            text-align: center;
-            background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
-            padding: 60px;
-            border-radius: 30px;
-            border: 1px solid rgba(28, 194, 191, 0.2);
-            box-shadow: 0 25px 50px rgba(0,0,0,0.7);
-            backdrop-filter: blur(15px);
-            max-width: 500px;
-            width: 90%;
-        }
-        .logo {
-            font-size: 38px;
-            color: #1cc2bf;
-            margin-bottom: 10px;
-            font-weight: 300;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-        }
-        .logo b { color: #ffffff; font-weight: 800; letter-spacing: 1px; }
-        p {
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 45px;
-            font-size: 16px;
-            line-height: 1.6;
-        }
-        .verify-btn {
-            background: linear-gradient(135deg, #1cc2bf 0%, #15918f 100%);
-            color: #ffffff;
-            border: none;
-            padding: 20px 50px;
-            font-size: 15px;
-            font-weight: 800;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            box-shadow: 0 10px 20px rgba(28, 194, 191, 0.2);
-        }
-        .verify-btn:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 30px rgba(28, 194, 191, 0.4);
-            filter: brightness(1.1);
-        }
+        body { background-color: #050b18; color: #ffffff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .container { text-align: center; background: rgba(255, 255, 255, 0.05); padding: 60px; border-radius: 30px; border: 1px solid rgba(28, 194, 191, 0.2); max-width: 500px; width: 90%; }
+        .logo { font-size: 38px; color: #1cc2bf; margin-bottom: 10px; font-weight: 300; text-transform: uppercase; }
+        .logo b { color: #ffffff; font-weight: 800; }
+        .verify-btn { background: #1cc2bf; color: white; border: none; padding: 20px 50px; font-size: 15px; font-weight: 800; border-radius: 12px; cursor: pointer; text-transform: uppercase; margin-top: 20px; }
         .user-highlight { color: #1cc2bf; font-weight: bold; }
     </style>
     """
 
     html_content = f"""
     <html>
-        <head>
-            <title>NeuralisBETS Verification</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            {css}
-        </head>
+        <head><title>NeuralisBETS Verification</title><meta name="viewport" content="width=device-width, initial-scale=1.0">{css}</head>
         <body>
             <div class="container">
                 <div class="logo">Neuralis<b>BETS</b></div>
-                <p>Witaj <span class="user-highlight">{user_name}</span>!<br>Kliknij poniższy przycisk, aby potwierdzić pełnoletniość i odblokować dostęp do serwera.</p>
+                <p>Witaj <span class="user-highlight">{user_name}</span>!<br>Kliknij poniższy przycisk, aby potwierdzić pełnoletniość.</p>
                 <form action="/confirm" method="post">
                     <input type="hidden" name="user_id" value="{user_id}">
                     <button type="submit" class="verify-btn">Oświadczam, że mam 18 lat</button>
@@ -138,43 +83,36 @@ async def callback(code: str):
 async def confirm(user_id: str = Form(...)):
     async def give_role():
         guild = bot.get_guild(GUILD_ID)
-        if not guild: return "Nie znaleziono serwera."
+        if not guild: return "Nie znaleziono serwera (sprawdź ID)."
         member = guild.get_member(int(user_id))
-        if not member: return "Nie znaleziono Cię na serwerze."
+        if not member: return "Nie ma Cię na serwerze."
         role = guild.get_role(ROLE_ID)
-        if not role: return "Nie znaleziono rangi."
+        if not role: return "Nie znaleziono roli (sprawdź ID)."
         try:
             await member.add_roles(role)
             return "Sukces"
-        except Exception as e: return str(e)
+        except Exception as e: return f"Błąd uprawnień: {e}"
 
-    future = asyncio.run_coroutine_threadsafe(give_role(), bot.loop)
-    result = future.result()
-
-    css_res = """
-    <style>
-        body { background-color: #050b18; color: white; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .box { padding: 50px; border-radius: 25px; background: rgba(255,255,255,0.02); border: 1px solid #1cc2bf; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
-        h2 { color: #1cc2bf; text-transform: uppercase; letter-spacing: 2px; }
-        .success-icon { font-size: 60px; margin-bottom: 20px; }
-    </style>
-    """
+    if bot.is_ready():
+        future = asyncio.run_coroutine_threadsafe(give_role(), bot.loop)
+        result = future.result()
+    else:
+        result = "Bot nie jest jeszcze gotowy."
 
     if result == "Sukces":
-        content = '<div class="box"><div class="success-icon">✅</div><h2>Weryfikacja udana!</h2><p>Twoja ranga została nadana. Możesz wrócić na Discorda.</p></div>'
+        content = "<h2>Weryfikacja udana!</h2>"
     else:
-        content = f'<div class="box" style="border-color: #ff4444;"><div class="success-icon">❌</div><h2 style="color: #ff4444;">Błąd</h2><p>{result}</p></div>'
-
-    return HTMLResponse(f"<html><head>{css_res}</head><body>{content}</body></html>")
-import threading
+        content = f"<h2>Błąd: {result}</h2>"
+    
+    return HTMLResponse(f"<html><body style='background:#050b18;color:white;text-align:center;padding-top:50px;'>{content}</body></html>")
 
 if __name__ == "__main__":
-    # Sprawdzenie czy token istnieje
     if TOKEN:
-        # URUCHOMIENIE BOTA W TLE (To jest brakujący element!)
-        threading.Thread(target=bot.run, args=(TOKEN,), daemon=True).start()
+        # Odpalenie bota w tle
+        t = threading.Thread(target=bot.run, args=(TOKEN,))
+        t.daemon = True
+        t.start()
     
-    # URUCHOMIENIE SERWERA WWW (To co widzieliśmy w logach)
-    import uvicorn
+    # Odpalenie serwera FastAPI
     port = int(os.environ.get("PORT", 10000))
     uvicorn.run(app, host="0.0.0.0", port=port)
