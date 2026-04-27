@@ -2,13 +2,14 @@ import nextcord
 from nextcord.ext import commands
 from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse
+from contextlib import asynccontextmanager
 import uvicorn
 import asyncio
 import aiohttp
 import os
 import threading
 
-# --- KONFIGURACJA POBIERANA Z RENDER ---
+# --- KONFIGURACJA ---
 TOKEN = os.getenv("DISCORD_TOKEN")
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
@@ -18,10 +19,33 @@ REDIRECT_URI = "https://neuralisverify.onrender.com/callback"
 
 intents = nextcord.Intents.all()
 bot = commands.Bot(intents=intents)
-app = FastAPI()
 
-# Przechowujemy pętlę zdarzeń bota
 bot_loop = None
+bot_thread = None
+
+
+def run_bot():
+    global bot_loop
+    bot_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(bot_loop)
+    if TOKEN:
+        bot_loop.run_until_complete(bot.start(TOKEN))
+    else:
+        print("❌ BŁĄD: Brak zmiennej DISCORD_TOKEN!")
+
+
+# lifespan — uruchamia bota przy starcie FastAPI (działa też z: uvicorn main:app)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global bot_thread
+    print("🚀 Uruchamianie bota Discord...")
+    bot_thread = threading.Thread(target=run_bot, daemon=True)
+    bot_thread.start()
+    yield
+    print("🛑 Zamykanie...")
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 class VerifyView(nextcord.ui.View):
@@ -126,7 +150,6 @@ async def confirm(user_id: str = Form(...)):
         except Exception as e:
             return f"Błąd: {str(e)}"
 
-    # Uruchamiamy coroutine w pętli bota (inny wątek)
     future = asyncio.run_coroutine_threadsafe(give_role(), bot_loop)
     try:
         result = future.result(timeout=10)
@@ -139,22 +162,6 @@ async def confirm(user_id: str = Form(...)):
     )
 
 
-def run_bot():
-    global bot_loop
-    bot_loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(bot_loop)
-    bot_loop.run_until_complete(bot.start(TOKEN))
-
-
 if __name__ == "__main__":
-    if not TOKEN:
-        print("❌ BŁĄD: Brak zmiennej DISCORD_TOKEN!")
-    else:
-        # Start bota w osobnym wątku z własną pętlą zdarzeń
-        bot_thread = threading.Thread(target=run_bot, daemon=True)
-        bot_thread.start()
-        print("🚀 Uruchamianie bota w tle...")
-
-    # Start serwera FastAPI
     port = int(os.environ.get("PORT", 10000))
     uvicorn.run(app, host="0.0.0.0", port=port)
