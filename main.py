@@ -168,23 +168,13 @@ async def confirm(user_id: str = Form(...)):
     return HTMLResponse(f"<html><head>{css_res}</head><body>{content}</body></html>")
 import threading
 
-def run_uvicorn():
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-
-import threading
-
-import threading
-import os
-
 if __name__ == "__main__":
-    # Pobranie tokenu z Environment Variables Rendera
-    TOKEN = os.getenv("DISCORD_TOKEN")
-
-    # 1. URUCHOMIENIE BOTA W TLE (to go ożywi na Discordzie)
+    # Sprawdzenie czy token istnieje
     if TOKEN:
+        # URUCHOMIENIE BOTA W TLE (To jest brakujący element!)
         threading.Thread(target=bot.run, args=(TOKEN,), daemon=True).start()
-
-    # 2. URUCHOMIENIE SERWERA WWW (to już masz, ale musi być pod botem)
+    
+    # URUCHOMIENIE SERWERA WWW (To co widzieliśmy w logach)
     import uvicorn
     port = int(os.environ.get("PORT", 10000))
     uvicorn.run(app, host="0.0.0.0", port=port)
