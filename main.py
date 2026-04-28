@@ -23,6 +23,19 @@ bot = commands.Bot(intents=intents)
 bot_loop = None
 bot_thread = None
 
+# ─── KEEP ALIVE ───────────────────────────────────────────────────────────────
+
+async def keep_alive():
+    await asyncio.sleep(30)  # poczekaj aż serwis wstanie
+    while True:
+        try:
+            async with aiohttp.ClientSession() as session:
+                await session.get("https://neuralisverify.onrender.com/")
+            print("✅ Keep-alive ping wysłany")
+        except Exception as e:
+            print(f"⚠️ Keep-alive błąd: {e}")
+        await asyncio.sleep(600)  # co 10 minut
+
 # ─── HTML TEMPLATES ───────────────────────────────────────────────────────────
 
 BASE_STYLE = """
@@ -48,13 +61,11 @@ html, body {
   overflow: hidden;
 }
 
-/* ── canvas particles ── */
 #canvas {
   position: fixed; inset: 0;
   z-index: 0; pointer-events: none;
 }
 
-/* ── scanlines overlay ── */
 body::after {
   content: '';
   position: fixed; inset: 0; z-index: 1;
@@ -68,7 +79,6 @@ body::after {
   pointer-events: none;
 }
 
-/* ── grid background ── */
 body::before {
   content: '';
   position: fixed; inset: 0; z-index: 0;
@@ -78,14 +88,12 @@ body::before {
   background-size: 40px 40px;
 }
 
-/* ── center wrapper ── */
 .scene {
   position: relative; z-index: 2;
   display: flex; align-items: center; justify-content: center;
   width: 100%; height: 100vh;
 }
 
-/* ── card ── */
 .card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -103,16 +111,12 @@ body::before {
   to   { opacity:1; transform: translateY(0)   scale(1);    }
 }
 
-/* ── logo ── */
-.logo-wrap {
-  position: relative; display: inline-block; margin-bottom: 28px;
-}
 .logo-ring {
   width: 80px; height: 80px;
   border-radius: 50%;
   border: 2px solid var(--teal);
   display: flex; align-items: center; justify-content: center;
-  margin: 0 auto 6px;
+  margin: 0 auto 22px;
   box-shadow: var(--glow);
   animation: pulse 3s ease-in-out infinite;
 }
@@ -122,7 +126,6 @@ body::before {
 }
 .logo-ring svg { width:40px; height:40px; fill: var(--teal); }
 
-/* ── heading ── */
 h1 {
   font-family: 'Orbitron', sans-serif;
   font-size: 1.7rem; font-weight: 900;
@@ -138,7 +141,6 @@ h1 {
   margin-bottom: 28px;
 }
 
-/* ── divider ── */
 .divider {
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--teal), transparent);
@@ -146,7 +148,6 @@ h1 {
   opacity: .5;
 }
 
-/* ── greeting ── */
 .greeting {
   font-size: 1rem; color: rgba(255,255,255,.6);
   letter-spacing: .05em; margin-bottom: 6px;
@@ -157,7 +158,6 @@ h1 {
   letter-spacing: .08em; margin-bottom: 28px;
 }
 
-/* ── badge ── */
 .badge {
   display: inline-flex; align-items: center; gap: 8px;
   background: rgba(28,194,191,.08);
@@ -175,7 +175,6 @@ h1 {
 }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-/* ── button ── */
 .btn {
   display: inline-block; width: 100%;
   padding: 16px 32px;
@@ -202,7 +201,6 @@ h1 {
 .btn:hover::before { transform: scaleX(1); }
 .btn:active { transform: scale(.98); }
 
-/* ── status card (confirm page) ── */
 .status-icon {
   width: 72px; height: 72px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -225,7 +223,6 @@ h1 {
   color: rgba(255,255,255,.25);
 }
 
-/* ── corner decorations ── */
 .corner { position: absolute; width:18px; height:18px; }
 .corner.tl { top:14px;  left:14px;  border-top:2px solid var(--teal); border-left:2px solid var(--teal);  }
 .corner.tr { top:14px;  right:14px; border-top:2px solid var(--teal); border-right:2px solid var(--teal); }
@@ -293,12 +290,12 @@ function connect() {
 })();
 """
 
-LOGO_SVG = """<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
-</svg>"""
-
 SHIELD_SVG = """<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
   <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+</svg>"""
+
+LOGO_SVG = """<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
 </svg>"""
 
 
@@ -325,17 +322,13 @@ def callback_page(user_name: str, user_id: str) -> str:
   <div class="card" style="position:relative;">
     <span class="corner tl"></span><span class="corner tr"></span>
     <span class="corner bl"></span><span class="corner br"></span>
-
     <div class="logo-ring">{SHIELD_SVG}</div>
     <h1>NeuralisBETS</h1>
     <p class="subtitle">Verification System</p>
     <div class="divider"></div>
-
     <p class="greeting">Witaj,</p>
     <p class="username">{user_name}</p>
-
     <div class="badge">Weryfikacja wieku 18+</div>
-
     <form action="/confirm" method="post">
       <input type="hidden" name="user_id" value="{user_id}">
       <button class="btn" type="submit">⬡ Potwierdzam 18 lat</button>
@@ -347,21 +340,19 @@ def callback_page(user_name: str, user_id: str) -> str:
 
 def confirm_page(result: str) -> str:
     ok = result.startswith("✅")
-    icon  = "✓" if ok else "✕"
-    cls   = "ok" if ok else "err"
-    hint  = "Możesz wrócić na serwer Discord." if ok else "Spróbuj ponownie lub skontaktuj się z adminem."
+    icon = "✓" if ok else "✕"
+    cls  = "ok" if ok else "err"
+    hint = "Możesz wrócić na serwer Discord." if ok else "Spróbuj ponownie lub skontaktuj się z adminem."
 
     body = f"""
 <div class="scene">
   <div class="card" style="position:relative;">
     <span class="corner tl"></span><span class="corner tr"></span>
     <span class="corner bl"></span><span class="corner br"></span>
-
     <div class="logo-ring">{LOGO_SVG}</div>
     <h1>NeuralisBETS</h1>
     <p class="subtitle">Verification System</p>
     <div class="divider"></div>
-
     <div class="status-icon {cls}">{icon}</div>
     <p class="result-text {cls}">{result}</p>
     <p class="hint">{hint}</p>
@@ -388,6 +379,8 @@ async def lifespan(app: FastAPI):
     print("🚀 Uruchamianie bota Discord...")
     bot_thread = threading.Thread(target=run_bot, daemon=True)
     bot_thread.start()
+    # ← keep-alive startuje razem z FastAPI
+    asyncio.create_task(keep_alive())
     yield
     print("🛑 Zamykanie...")
 
@@ -464,11 +457,14 @@ async def confirm(user_id: str = Form(...)):
 
     async def give_role():
         guild = bot.get_guild(GUILD_ID)
-        if not guild:   return "✕ Nie znaleziono serwera."
+        if not guild:
+            return "✕ Nie znaleziono serwera."
         member = guild.get_member(int(user_id))
-        if not member:  return "✕ Nie znaleziono użytkownika na serwerze."
+        if not member:
+            return "✕ Nie znaleziono użytkownika na serwerze."
         role = guild.get_role(ROLE_ID)
-        if not role:    return "✕ Nie znaleziono roli."
+        if not role:
+            return "✕ Nie znaleziono roli."
         try:
             await member.add_roles(role)
             return "✅ Ranga została nadana!"
